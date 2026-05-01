@@ -13,16 +13,19 @@ const authRoutes = require('./routes/auth');
 const app = express();
 app.use(express.json());
 
+const normalizeOrigin = (value) => (value || "").trim().replace(/\/+$/, '');
+
 const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:3000,http://localhost:3001")
     .split(',')
-    .map(s => s.trim())
+    .map(normalizeOrigin)
     .filter(Boolean);
 
 app.use(cors({
     origin: (origin, callback) => {
         // allow non-browser clients / same-origin (e.g. curl, server-to-server)
         if (!origin) return callback(null, true);
-        if (allowedOrigins.includes(origin)) return callback(null, true);
+        const normalizedOrigin = normalizeOrigin(origin);
+        if (allowedOrigins.includes(normalizedOrigin)) return callback(null, true);
         return callback(new Error(`CORS blocked for origin: ${origin}`));
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
