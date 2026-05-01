@@ -29,6 +29,16 @@ app.use(cors({
 }));
 app.use('/api/auth', authRoutes); // This tells the server to use our new routes
 
+// Health check for Railway / load balancers
+app.get('/health', (req, res) => {
+    const dbState = mongoose.connection?.readyState; // 0 disconnected, 1 connected, 2 connecting, 3 disconnecting
+    res.status(200).json({
+        ok: true,
+        dbReadyState: dbState,
+        dbName: mongoose.connection?.db?.databaseName,
+    });
+});
+
 // Track online users
 const onlineUsersMap = new Map(); // username -> socket.id
 const typingUsers = new Map(); // username -> Set of users they're typing to
@@ -80,30 +90,27 @@ if (!MONGO_URI) {
     process.exit(1);
 }
 
-mongoose.connect(MONGO_URI, {
-    dbName: process.env.MONGODB_DB_NAME || undefined,
-    serverSelectionTimeoutMS: 15000,
-})
-    .then(() => {
+const connectWithRetry = async () => {
+    try {
+        await mongoose.connect(MONGO_URI, {
+            dbName: process.env.MONGODB_DB_NAME || undefined,
+            serverSelectionTimeoutMS: 15000,
+        });
         const dbName = mongoose.connection?.db?.databaseName;
         console.log(`✅ MongoDB Connected${dbName ? ` (db: ${dbName})` : ""}`);
-
-
-        const io = new Server(server, {
-            cors: {
-                origin: ["http://localhost:3000", "https://your-app-name.vercel.app"], // Add your Vercel URL here later
-                methods: ["GET", "POST"]
-            }
-        });
-        //const PORT = process.env.PORT || 5001;
-        //server.listen(PORT, () => {
-         //   console.log(`🚀 Server running on http://localhost:${PORT}`);
-       // });
-    })
-    .catch((err) => {
+    } catch (err) {
         console.error("❌ DB Error:", err);
-        process.exit(1);
-    });
+        console.log("🔁 Retrying MongoDB connection in 5s...");
+        setTimeout(connectWithRetry, 5000);
+    }
+};
+connectWithRetry();
+
+// Start server immediately (Railway requires a bound PORT)
+const PORT = process.env.PORT || 5001;
+server.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
+});
 
 // --- SOCKET.IO LOGIC (The "Phone Call") ---
 io.on('connection', (socket) => {
