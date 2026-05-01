@@ -21,6 +21,7 @@ function App() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [isRegistering, setIsRegistering] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const messagesEndRef = useRef(null);
   const messageInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -319,18 +320,44 @@ function App() {
     };
   }, [selectedUser, user]);
 
-  // Logout
-  const handleLogout = async () => {
+  // Show logout confirmation modal
+  const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  // Confirm logout
+  const confirmLogout = async () => {
     try {
       await axios.post("http://localhost:5001/api/auth/logout", { userId: user.userId });
     } catch (err) {
       console.error("Logout error:", err);
     }
+    setShowLogoutModal(false);
     setUser(null);
     setSelectedUser(null);
     setMessages([]);
     setUsername("");
     setPassword("");
+  };
+
+  // Cancel logout
+  const cancelLogout = () => {
+    setShowLogoutModal(false);
+  };
+
+  // Format last seen time
+  const formatLastSeen = (lastSeenDate) => {
+    if (!lastSeenDate) return 'Last seen unknown';
+    
+    const date = new Date(lastSeenDate);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'Last seen just now';
+    if (diff < 3600000) return `Last seen ${Math.floor(diff / 60000)}m ago`;
+    if (diff < 86400000) return `Last seen ${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 604800000) return `Last seen ${Math.floor(diff / 86400000)}d ago`;
+    return date.toLocaleDateString();
   };
 
   // Format timestamp
@@ -356,6 +383,31 @@ function App() {
             {emoji}
           </button>
         ))}
+      </div>
+    );
+  };
+
+  // Logout confirmation modal component
+  const LogoutModal = () => {
+    return (
+      <div className="modal-overlay" onClick={cancelLogout}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3>🚪 Logout Confirmation</h3>
+          </div>
+          <div className="modal-body">
+            <p>Are you sure you want to logout from your account?</p>
+            <p className="modal-subtext">You can always log back in later.</p>
+          </div>
+          <div className="modal-footer">
+            <button className="btn-cancel" onClick={cancelLogout}>
+              No, Stay
+            </button>
+            <button className="btn-confirm" onClick={confirmLogout}>
+              Yes, Logout
+            </button>
+          </div>
+        </div>
       </div>
     );
   };
@@ -452,7 +504,7 @@ function App() {
                   )}
                 </div>
                 <div className="user-status">
-                  {onlineUsers.includes(u.username) ? '🟢 Online' : '⚫ Offline'}
+                  {onlineUsers.includes(u.username) ? '🟢 Online' : `⚫ ${formatLastSeen(u.lastSeen)}`}
                 </div>
               </div>
             </div>
@@ -469,7 +521,7 @@ function App() {
                 <div className="chat-user-details">
                   <div className="chat-username">{selectedUser.username}</div>
                   <div className="chat-status">
-                    {onlineUsers.includes(selectedUser.username) ? '🟢 Online' : '⚫ Offline'}
+                    {onlineUsers.includes(selectedUser.username) ? '🟢 Online' : `⚫ ${formatLastSeen(selectedUser.lastSeen)}`}
                   </div>
                 </div>
               </div>
@@ -604,6 +656,7 @@ function App() {
           </div>
         )}
       </div>
+      {showLogoutModal && <LogoutModal />}
     </div>
   );
 }

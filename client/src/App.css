@@ -742,6 +742,7 @@ body {
   padding: 24px;
   background: var(--white);
   border-top: 1px solid var(--gray-200);
+  position: relative;
 }
 
 .app.dark .message-input-container {
@@ -758,6 +759,7 @@ body {
   padding: 12px 16px;
   border: 2px solid var(--gray-200);
   transition: var(--transition);
+  position: relative;
 }
 
 .app.dark .message-input-wrapper {
@@ -838,7 +840,7 @@ body {
 /* Emoji Picker */
 .emoji-picker {
   position: absolute;
-  bottom: 100%;
+  bottom: 110%;
   left: 0;
   background: var(--white);
   border: 1px solid var(--gray-200);
@@ -850,6 +852,7 @@ body {
   gap: 8px;
   max-width: 280px;
   margin-bottom: 8px;
+  z-index: 100;
 }
 
 .app.dark .emoji-picker {
@@ -1193,6 +1196,150 @@ body {
   margin: 0;
   color: var(--gray-900);
   font-weight: 600;
+}
+
+/* Logout Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: var(--white);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--box-shadow-hover);
+  max-width: 400px;
+  width: 90%;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.app.dark .modal-content {
+  background: var(--gray-100);
+}
+
+.modal-header {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.app.dark .modal-header {
+  border-color: var(--gray-300);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--gray-900);
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.app.dark .modal-header h3 {
+  color: var(--white);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-body p {
+  margin: 8px 0;
+  color: var(--gray-700);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.app.dark .modal-body p {
+  color: var(--gray-400);
+}
+
+.modal-subtext {
+  font-size: 0.9rem;
+  color: var(--gray-500);
+  margin-top: 12px !important;
+}
+
+.app.dark .modal-subtext {
+  color: var(--gray-500);
+}
+
+.modal-footer {
+  padding: 16px 24px 24px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  background: var(--gray-200);
+  border: none;
+  color: var(--gray-900);
+  padding: 12px 24px;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 1rem;
+}
+
+.app.dark .btn-cancel {
+  background: var(--gray-200);
+  color: var(--gray-900);
+}
+
+.btn-cancel:hover {
+  background: var(--gray-300);
+  transform: translateY(-2px);
+}
+
+.app.dark .btn-cancel:hover {
+  background: var(--gray-300);
+}
+
+.btn-confirm {
+  background: var(--danger-color);
+  border: none;
+  color: var(--white);
+  padding: 12px 24px;
+  border-radius: var(--border-radius);
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 1rem;
+}
+
+.btn-confirm:hover {
+  background: #c82333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
 }
 
 .no-chat-selected {
