@@ -3,7 +3,12 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import './App.css';
 
-const socket = io.connect("http://localhost:5001");
+const API_BASE_URL = (process.env.REACT_APP_API_URL || 'http://localhost:5001').replace(/\/+$/, '');
+const SOCKET_URL = (process.env.REACT_APP_SOCKET_URL || API_BASE_URL).replace(/\/+$/, '');
+
+const socket = io(SOCKET_URL, {
+  transports: ['websocket', 'polling'],
+});
 
 function App() {
   const [user, setUser] = useState(null);
@@ -64,7 +69,7 @@ function App() {
     setError("");
 
     try {
-      const res = await axios.post("http://localhost:5001/api/auth/login", {
+      const res = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         username: username.trim().toLowerCase(),
         password
       });
@@ -104,7 +109,7 @@ function App() {
     setError("");
 
     try {
-      const res = await axios.post("http://localhost:5001/api/auth/register", {
+      const res = await axios.post(`${API_BASE_URL}/api/auth/register`, {
         username: username.trim().toLowerCase(),
         password
       });
@@ -124,7 +129,7 @@ function App() {
     if (!currentUsername) return;
 
     try {
-      const res = await axios.get("http://localhost:5001/api/auth/users", {
+      const res = await axios.get(`${API_BASE_URL}/api/auth/users`, {
         params: { username: currentUsername }
       });
       setUsers(res.data);
@@ -138,7 +143,7 @@ function App() {
     if (!user || !otherUserId) return;
 
     try {
-      const res = await axios.get(`http://localhost:5001/api/messages/${user.username}/${otherUserId}`);
+      const res = await axios.get(`${API_BASE_URL}/api/messages/${user.username}/${otherUserId}`);
       setMessages(res.data);
 
       // Mark messages as read
@@ -328,7 +333,7 @@ function App() {
   // Confirm logout
   const confirmLogout = async () => {
     try {
-      await axios.post("http://localhost:5001/api/auth/logout", { userId: user.userId });
+      await axios.post(`${API_BASE_URL}/api/auth/logout`, { userId: user.userId });
     } catch (err) {
       console.error("Logout error:", err);
     }

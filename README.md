@@ -18,6 +18,8 @@ A full-stack real-time chat application built with the MERN stack and Socket.io.
 1. Clone the repo: `git clone <your-repo-link>`
 2. **Server:** 
    - `cd server`
+   - Create a `.env` file inside `server/` with your MongoDB Atlas URI:
+     - `MONGODB_URI="mongodb+srv://<user>:<password>@<cluster>/<db>?retryWrites=true&w=majority"`
    - `npm install`
    - `npm run dev`
 3. **Client:**

@@ -1,7 +1,7 @@
 
-
 const express = require('express');
 const mongoose = require('mongoose');
+require('dotenv').config(); // Ensure this is at the very top
 const cors = require('cors');
 const http = require('http'); // 1. Built-in Node tool
 const { Server } = require('socket.io'); // 2. Import Socket.io
@@ -12,7 +12,21 @@ const authRoutes = require('./routes/auth');
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+
+const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:3000,http://localhost:3001")
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // allow non-browser clients / same-origin (e.g. curl, server-to-server)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+}));
 app.use('/api/auth', authRoutes); // This tells the server to use our new routes
 
 // Track online users
@@ -54,16 +68,42 @@ const server = http.createServer(app);
 // Initialize Socket.io on top of our server
 const io = new Server(server, {
     cors: {
-        origin: ["http://localhost:3000", "http://localhost:3001"],
+        origin: allowedOrigins,
         methods: ["GET", "POST"]
     }
 });
 
-// --- DATABASE CONNECTION ---
-const MONGO_URI = 'mongodb://127.0.0.1:27017/chatdb'; 
-mongoose.connect(MONGO_URI)
-    .then(() => console.log("✅ MongoDB Connected"))
-    .catch((err) => console.log("❌ DB Error:", err));
+// --- DATABASE CONNECTION (MongoDB Atlas) ---
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI;
+if (!MONGO_URI) {
+    console.error("❌ Missing MongoDB connection string. Set MONGODB_URI (preferred) or MONGO_URI in your environment.");
+    process.exit(1);
+}
+
+mongoose.connect(MONGO_URI, {
+    dbName: process.env.MONGODB_DB_NAME || undefined,
+    serverSelectionTimeoutMS: 15000,
+})
+    .then(() => {
+        const dbName = mongoose.connection?.db?.databaseName;
+        console.log(`✅ MongoDB Connected${dbName ? ` (db: ${dbName})` : ""}`);
+
+
+        const io = new Server(server, {
+            cors: {
+                origin: ["http://localhost:3000", "https://your-app-name.vercel.app"], // Add your Vercel URL here later
+                methods: ["GET", "POST"]
+            }
+        });
+        //const PORT = process.env.PORT || 5001;
+        //server.listen(PORT, () => {
+         //   console.log(`🚀 Server running on http://localhost:${PORT}`);
+       // });
+    })
+    .catch((err) => {
+        console.error("❌ DB Error:", err);
+        process.exit(1);
+    });
 
 // --- SOCKET.IO LOGIC (The "Phone Call") ---
 io.on('connection', (socket) => {
@@ -239,7 +279,4 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.PORT || 5001;
-server.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+// server.listen moved to DB connect success handler
