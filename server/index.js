@@ -20,14 +20,26 @@ const allowedOrigins = (process.env.CLIENT_ORIGINS || "http://localhost:3000,htt
     .map(normalizeOrigin)
     .filter(Boolean);
 
+const isOriginAllowed = (origin) => {
+    if (!origin) return true;
+    if (allowedOrigins.includes('*')) return true;
+    const normalizedOrigin = normalizeOrigin(origin);
+    return allowedOrigins.includes(normalizedOrigin);
+};
+
+// Return a clear error instead of crashing to 500
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (!origin) return next();
+    if (isOriginAllowed(origin)) return next();
+    return res.status(403).json({
+        msg: 'CORS blocked',
+        origin: normalizeOrigin(origin),
+    });
+});
+
 app.use(cors({
-    origin: (origin, callback) => {
-        // allow non-browser clients / same-origin (e.g. curl, server-to-server)
-        if (!origin) return callback(null, true);
-        const normalizedOrigin = normalizeOrigin(origin);
-        if (allowedOrigins.includes(normalizedOrigin)) return callback(null, true);
-        return callback(new Error(`CORS blocked for origin: ${origin}`));
-    },
+    origin: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 }));
 app.use('/api/auth', authRoutes); // This tells the server to use our new routes
