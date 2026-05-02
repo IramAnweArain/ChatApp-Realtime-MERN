@@ -58,6 +58,11 @@ app.get('/health', (req, res) => {
 const onlineUsersMap = new Map(); // username -> socket.id
 const typingUsers = new Map(); // username -> Set of users they're typing to
 
+const getRoomId = (userA, userB) => {
+    if (!userA || !userB) return null;
+    return [userA, userB].sort().join('_');
+};
+
 // Get Messages Route - Updated for one-to-one chat
 app.get('/api/messages/:userId/:otherUserId', async (req, res) => {
     try {
@@ -148,44 +153,57 @@ io.on('connection', (socket) => {
         console.log(`${username} is now online`);
     });
 
+    // User joins a private room for a one-to-one chat
+    socket.on('join_room', ({ sender, receiver }) => {
+        const roomId = getRoomId(sender, receiver);
+        if (!roomId) return;
+        socket.join(roomId);
+        console.log(`${sender} joined room ${roomId}`);
+    });
+
     // Listen for private message
     socket.on('send_private_message', async (data) => {
         console.log("Private Message Received:", data);
 
         try {
+            const roomId = getRoomId(data.sender, data.receiver);
+            if (!roomId) return;
+
             // 1. Save the message to the database
             const newMessage = new Message({
                 sender: data.sender,
                 receiver: data.receiver,
+                roomId,
                 message: data.text,
                 status: 'sent'
             });
 
             await newMessage.save();
 
-            // 2. Send to specific receiver if online
             const receiverSocketId = onlineUsersMap.get(data.receiver);
-            if (receiverSocketId) {
-                io.to(receiverSocketId).emit('receive_private_message', {
-                    ...data,
-                    _id: newMessage._id,
-                    message: newMessage.message,
-                    timestamp: newMessage.timestamp,
-                    status: 'delivered'
-                });
-
-                // Update message status to delivered
-                await Message.findByIdAndUpdate(newMessage._id, { status: 'delivered' });
-            }
-
-            // 3. Send back to sender for confirmation
-            socket.emit('message_sent', {
+            const messagePayload = {
                 ...data,
                 _id: newMessage._id,
+                roomId,
                 message: newMessage.message,
                 timestamp: newMessage.timestamp,
                 status: receiverSocketId ? 'delivered' : 'sent'
-            });
+            };
+
+            // 2. Send back to sender for confirmation
+            socket.emit('message_sent', messagePayload);
+
+            // 3. Emit to receiver via room when available, otherwise directly
+            if (receiverSocketId) {
+                const receiverSocket = io.sockets.sockets.get(receiverSocketId);
+                if (receiverSocket && receiverSocket.rooms.has(roomId)) {
+                    socket.to(roomId).emit('receive_private_message', messagePayload);
+                } else {
+                    io.to(receiverSocketId).emit('receive_private_message', messagePayload);
+                }
+
+                await Message.findByIdAndUpdate(newMessage._id, { status: 'delivered' });
+            }
         } catch (err) {
             console.error('Message save error:', err);
             socket.emit('message_error', { error: 'Failed to send message' });
@@ -200,12 +218,21 @@ io.on('connection', (socket) => {
         }
         typingUsers.get(receiver).add(sender);
 
+        const roomId = getRoomId(sender, receiver);
         const receiverSocketId = onlineUsersMap.get(receiver);
         if (receiverSocketId) {
-            io.to(receiverSocketId).emit('user_typing', {
-                userId: sender,
-                isTyping: true
-            });
+            const receiverSocket = io.sockets.sockets.get(receiverSocketId);
+            if (receiverSocket && receiverSocket.rooms.has(roomId)) {
+                socket.to(roomId).emit('user_typing', {
+                    userId: sender,
+                    isTyping: true
+                });
+            } else {
+                io.to(receiverSocketId).emit('user_typing', {
+                    userId: sender,
+                    isTyping: true
+                });
+            }
         }
     });
 
@@ -214,12 +241,21 @@ io.on('connection', (socket) => {
         if (typingUsers.has(receiver)) {
             typingUsers.get(receiver).delete(sender);
 
+            const roomId = getRoomId(sender, receiver);
             const receiverSocketId = onlineUsersMap.get(receiver);
             if (receiverSocketId) {
-                io.to(receiverSocketId).emit('user_typing', {
-                    userId: sender,
-                    isTyping: false
-                });
+                const receiverSocket = io.sockets.sockets.get(receiverSocketId);
+                if (receiverSocket && receiverSocket.rooms.has(roomId)) {
+                    socket.to(roomId).emit('user_typing', {
+                        userId: sender,
+                        isTyping: false
+                    });
+                } else {
+                    io.to(receiverSocketId).emit('user_typing', {
+                        userId: sender,
+                        isTyping: false
+                    });
+                }
             }
         }
     });
@@ -240,6 +276,22 @@ io.on('connection', (socket) => {
             }
         } catch (err) {
             console.error('Mark as read error:', err);
+        }
+    });
+
+    // Client acknowledges reading a single message
+    socket.on('message_read', async (data) => {
+        const { messageId, senderId, receiverId } = data;
+        try {
+            const updated = await Message.findByIdAndUpdate(messageId, { status: 'read' }, { new: true });
+            if (updated) {
+                const senderSocketId = onlineUsersMap.get(senderId);
+                if (senderSocketId) {
+                    io.to(senderSocketId).emit('messages_read', { readerId: receiverId, messageId });
+                }
+            }
+        } catch (err) {
+            console.error('Message read error:', err);
         }
     });
 

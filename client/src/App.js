@@ -161,6 +161,13 @@ function App() {
     setSelectedUser(selectedUserData);
     setTypingUsers(new Set());
 
+    if (user) {
+      socket.emit('join_room', {
+        sender: user.username,
+        receiver: selectedUserData.username
+      });
+    }
+
     setUsers(prev => prev.map(u =>
       u.username === selectedUserData.username ? { ...u, unreadCount: 0 } : u
     ));
@@ -252,7 +259,8 @@ function App() {
       if (selectedUser && data.sender === selectedUser.username) {
         setMessages(prev => [...prev, data]);
         showNotification(`${data.sender}`, data.text || data.message);
-        socket.emit('mark_messages_read', {
+        socket.emit('message_read', {
+          messageId: data._id,
           senderId: data.sender,
           receiverId: user.username
         });

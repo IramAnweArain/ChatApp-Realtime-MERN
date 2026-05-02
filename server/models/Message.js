@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const MessageSchema = new mongoose.Schema({
     sender: { type: String, required: true },
     receiver: { type: String, required: true },
+    roomId: { type: String, required: true },
     message: { type: String, required: true },
     messageType: { type: String, default: "text", enum: ["text", "image", "file"] },
     status: { type: String, default: "sent", enum: ["sent", "delivered", "read"] },
