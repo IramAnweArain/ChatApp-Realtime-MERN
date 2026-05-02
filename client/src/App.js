@@ -25,6 +25,8 @@ function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [typingUsers, setTypingUsers] = useState(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
+  const [toastMessage, setToastMessage] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const messagesEndRef = useRef(null);
@@ -39,6 +41,16 @@ function App() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
+  }, [darkMode]);
+
+  const showToast = (message) => {
+    setToastMessage(message);
+    window.clearTimeout(window.toastTimeout);
+    window.toastTimeout = window.setTimeout(() => setToastMessage(""), 3000);
+  };
 
   // Request notification permission
   useEffect(() => {
@@ -123,6 +135,10 @@ function App() {
       setLoading(false);
     }
   };
+
+  const filteredUsers = users.filter(u =>
+    u.username !== user?.username && u.username.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Fetch users list
   const fetchUsers = async (currentUsername = user?.username) => {
@@ -256,6 +272,8 @@ function App() {
   useEffect(() => {
     socket.on('receive_private_message', (data) => {
       const incomingSender = data.sender;
+      showToast(`New message from ${data.sender}`);
+
       if (selectedUser && data.sender === selectedUser.username) {
         setMessages(prev => [...prev, data]);
         showNotification(`${data.sender}`, data.text || data.message);
@@ -485,7 +503,10 @@ function App() {
         <div className="sidebar-header">
           <div className="user-info">
             <div className="avatar">{user.username[0].toUpperCase()}</div>
-            <span className="username">{user.username}</span>
+            <div>
+              <span className="username">{user.username}</span>
+              <div className="sidebar-subtitle">{onlineUsers.length} online, {users.length - 1} contacts</div>
+            </div>
           </div>
           <div className="sidebar-actions">
             <button
@@ -498,8 +519,17 @@ function App() {
           </div>
         </div>
 
+        <div className="sidebar-search">
+          <input
+            type="text"
+            placeholder="Search contacts..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
         <div className="users-list">
-          {users.filter(u => u.username !== user.username).map(u => (
+          {filteredUsers.map(u => (
             <div
               key={u.username}
               className={`user-item ${selectedUser?.username === u.username ? 'active' : ''}`}
@@ -537,6 +567,10 @@ function App() {
                     {onlineUsers.includes(selectedUser.username) ? '🟢 Online' : `⚫ ${formatLastSeen(selectedUser.lastSeen)}`}
                   </div>
                 </div>
+              </div>
+              <div className="chat-meta">
+                <span className="chat-room-pill">Private room</span>
+                <span className="chat-badge">{onlineUsers.includes(selectedUser.username) ? 'Live' : 'Offline'}</span>
               </div>
             </div>
 
@@ -669,6 +703,7 @@ function App() {
           </div>
         )}
       </div>
+      {toastMessage && <div className="toast">{toastMessage}</div>}
       {showLogoutModal && <LogoutModal />}
     </div>
   );
