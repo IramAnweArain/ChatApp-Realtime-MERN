@@ -27,10 +27,12 @@ function App() {
   const [typingUsers, setTypingUsers] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [toastMessage, setToastMessage] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const messagesEndRef = useRef(null);
   const messageInputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
   // Scroll to bottom of messages
@@ -45,6 +47,15 @@ function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? 'dark' : 'light';
   }, [darkMode]);
+
+  useEffect(() => {
+    if (user?.username) {
+      const savedAvatar = localStorage.getItem(`chatapp-avatar-${user.username}`);
+      if (savedAvatar) {
+        setAvatarUrl(savedAvatar);
+      }
+    }
+  }, [user]);
 
   const showToast = (message) => {
     setToastMessage(message);
@@ -152,6 +163,25 @@ function App() {
     } catch (err) {
       console.error("Failed to fetch users:", err);
     }
+  };
+
+  const handleAvatarUpload = (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      localStorage.setItem(`chatapp-avatar-${user.username}`, dataUrl);
+      setAvatarUrl(dataUrl);
+      showToast('Profile picture updated');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const getAvatar = (username) => {
+    const saved = localStorage.getItem(`chatapp-avatar-${username}`);
+    return saved || null;
   };
 
   // Fetch messages for selected user
@@ -502,12 +532,29 @@ function App() {
       <div className="sidebar">
         <div className="sidebar-header">
           <div className="user-info">
-            <div className="avatar">{user.username[0].toUpperCase()}</div>
+            <button
+              className="avatar avatar-button"
+              onClick={() => fileInputRef.current?.click()}
+              type="button"
+            >
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Profile" className="avatar-img" />
+              ) : (
+                user.username[0].toUpperCase()
+              )}
+            </button>
             <div>
               <span className="username">{user.username}</span>
               <div className="sidebar-subtitle">{onlineUsers.length} online, {users.length - 1} contacts</div>
             </div>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handleAvatarUpload}
+          />
           <div className="sidebar-actions">
             <button
               className="theme-toggle"
@@ -560,7 +607,13 @@ function App() {
           <>
             <div className="chat-header">
               <div className="chat-user-info">
-                <div className="chat-avatar">{selectedUser.username[0].toUpperCase()}</div>
+                <div className="chat-avatar">
+              {getAvatar(selectedUser.username) ? (
+                <img src={getAvatar(selectedUser.username)} alt={selectedUser.username} className="avatar-img" />
+              ) : (
+                selectedUser.username[0].toUpperCase()
+              )}
+            </div>
                 <div className="chat-user-details">
                   <div className="chat-username">{selectedUser.username}</div>
                   <div className="chat-status">
@@ -668,7 +721,7 @@ function App() {
                   disabled={!message.trim()}
                   className="send-btn"
                 >
-                  📤
+                  ➤
                 </button>
               </div>
 
