@@ -169,6 +169,16 @@ function App() {
     const file = event.target.files?.[0];
     if (!file || !user) return;
 
+    if (!file.type.startsWith('image/')) {
+      showToast('Please upload a valid image file');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('Avatar must be under 2MB');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result;
@@ -333,6 +343,18 @@ function App() {
       setOnlineUsers(onlineUsernames);
     });
 
+    socket.on('user_status_update', (userStatus) => {
+      setUsers(prev => prev.map(u =>
+        u.username === userStatus.username
+          ? { ...u, status: userStatus.status, lastSeen: userStatus.lastSeen }
+          : u
+      ));
+      setSelectedUser(prev => prev && prev.username === userStatus.username
+        ? { ...prev, status: userStatus.status, lastSeen: userStatus.lastSeen }
+        : prev
+      );
+    });
+
     socket.on('user_typing', (data) => {
       if (selectedUser && data.userId === selectedUser.username) {
         setTypingUsers(prev => {
@@ -375,6 +397,7 @@ function App() {
       socket.off('receive_private_message');
       socket.off('message_sent');
       socket.off('online_users_update');
+      socket.off('user_status_update');
       socket.off('user_typing');
       socket.off('messages_read');
       socket.off('reaction_added');
@@ -536,6 +559,7 @@ function App() {
               className="avatar avatar-button"
               onClick={() => fileInputRef.current?.click()}
               type="button"
+              title="Click to upload profile photo"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Profile" className="avatar-img" />
@@ -583,7 +607,11 @@ function App() {
               onClick={() => selectUser(u)}
             >
               <div className="user-avatar">
-                {u.username[0].toUpperCase()}
+                {getAvatar(u.username) ? (
+                  <img src={getAvatar(u.username)} alt={u.username} className="avatar-img" />
+                ) : (
+                  u.username[0].toUpperCase()
+                )}
                 <div className={`status-indicator ${onlineUsers.includes(u.username) ? 'online' : 'offline'}`}></div>
               </div>
               <div className="user-details">
@@ -720,8 +748,9 @@ function App() {
                   onClick={sendMessage}
                   disabled={!message.trim()}
                   className="send-btn"
+                  aria-label="Send message"
                 >
-                  ➤
+                  ✈
                 </button>
               </div>
 

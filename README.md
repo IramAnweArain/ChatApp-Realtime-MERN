@@ -4,11 +4,12 @@ A full-stack chat application built with React, Express, Socket.io, and MongoDB.
 ## 🔧 Features
 - One-to-one private chat rooms for direct user conversations
 - Real-time typing indicators
-- Online/offline presence with last seen timestamps
-- Message read receipts
+- Live online/offline presence with WhatsApp-style status updates
+- Real-time last seen timestamps that update on connect/disconnect
 - Persistent chat history stored in MongoDB
-- Emoji reactions and browser notifications
-- Secure account registration and login
+- Read receipts and message delivery indicators
+- Local profile photo upload and avatar display
+- Improved mobile-responsive chat UI
 
 ## 🧱 Project Structure
 - `server/` — Express API, Socket.io server, MongoDB models, authentication routes
@@ -37,5 +38,7 @@ A full-stack chat application built with React, Express, Socket.io, and MongoDB.
 ## 🛠️ Notes
 - The server runs on port `5001` by default.
 - The client connects to the backend URL using `socket.io-client`.
+- Local profile pictures are stored in browser `localStorage` per username, so each user can upload a DP in the app and see it on the same device.
+- Last seen and online/offline status now update in real time via Socket.io status events.
 - If you change backend ports, update `client/src/App.js` or set `REACT_APP_API_URL` / `REACT_APP_SOCKET_URL` accordingly.
 

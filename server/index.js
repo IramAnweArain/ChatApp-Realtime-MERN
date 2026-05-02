@@ -149,6 +149,11 @@ io.on('connection', (socket) => {
 
         // Broadcast updated online users list
         io.emit('online_users_update', Array.from(onlineUsersMap.keys()));
+        io.emit('user_status_update', {
+            username,
+            status: 'Online',
+            lastSeen: new Date()
+        });
 
         console.log(`${username} is now online`);
     });
@@ -339,13 +344,19 @@ io.on('connection', (socket) => {
             });
 
             // Update user status in database
+            const lastSeenValue = new Date();
             await User.findOneAndUpdate({ username: socket.username }, {
                 status: 'Offline',
-                lastSeen: new Date()
+                lastSeen: lastSeenValue
             });
 
             // Broadcast updated online users list
             io.emit('online_users_update', Array.from(onlineUsersMap.keys()));
+            io.emit('user_status_update', {
+                username: socket.username,
+                status: 'Offline',
+                lastSeen: lastSeenValue
+            });
 
             console.log(`${socket.username} disconnected`);
         }
